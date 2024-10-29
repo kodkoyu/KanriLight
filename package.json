@@ -1,11 +1,11 @@
 {
   "name": "kanrilight",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "Server.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/server.js",
-    "debug": "nodemon src/server.ts",
+    "start": "node dist/Server.js",
+    "debug": "nodemon src/Server.ts",
     "build": "tsc -p ."
   },
   "keywords": [],

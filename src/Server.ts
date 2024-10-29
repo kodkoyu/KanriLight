@@ -1,5 +1,9 @@
-import { App } from "./App";
 require('dotenv').config();
 
-App.set("PORT",process.env.PORT)
-App.listen(App.get("PORT"),()=>{console.log("The server started , Port is : " + App.get("PORT") );});
+import { App } from "./App";
+
+
+
+App.listen(process.env.PORT,() => {
+    console.log(process.env.RUNMESSAGE)
+});
