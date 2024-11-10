@@ -25,6 +25,7 @@ out/
 *.d.ts
 
 # Environment variables
+
 .env
 .env.test
 .env.production
