@@ -1,5 +1,0 @@
-export enum UserStatus {
-    "Unapproved" = 0, //Onaylanmamış
-    "Approved" = 1, // Onaylı,Aktif
-    "Deleted" = 2 //Silindi
-}
