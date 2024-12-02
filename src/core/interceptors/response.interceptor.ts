@@ -13,8 +13,8 @@ export class ResponseInterceptor<T> implements NestInterceptor {
         return next.handle().pipe(
             map((data) => ({
                 success: true,
-                data,
-                message: 'Request completed successfully',
+                message: 'Success',
+                data
             })),
         );
     }

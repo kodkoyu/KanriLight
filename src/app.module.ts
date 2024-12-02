@@ -1,9 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongoModule } from './infrastructure/database/mongo.module';
 import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
 import { ResponseInterceptor } from './core/interceptors/response.interceptor';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { AuthorizationInterceptor } from './core/interceptors/authorization.interceptor';
+import { AuthorizationGuard } from './core/guards/authorization.guard';
+import { RequestContextMiddleware } from './core/middlewares/request-context.middleware';
+import { ContextModule } from './shared/services/context.module';
 import { UserModule } from './api/User/ user.module';
 
 @Module({
@@ -13,7 +17,8 @@ import { UserModule } from './api/User/ user.module';
       envFilePath: '.env',
     }),
     MongoModule,
-    UserModule
+    UserModule,
+    ContextModule,
   ],
   providers: [
     {
@@ -24,6 +29,20 @@ import { UserModule } from './api/User/ user.module';
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuthorizationInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthorizationGuard,
+    },
   ],
 })
-export class AppModule { }
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestContextMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

@@ -1,13 +1,16 @@
 import { Schema, Types } from 'mongoose';
+import { Status } from '../../shared/constants/status.enum';
 
 export abstract class BaseEntity {
-    _id: Types.ObjectId;
+    id: Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
+    status: Status.Active | Status.Passive | Status.Deleted = Status.Active;
 
     constructor() {
-        this._id = new Types.ObjectId();
+        this.id = new Types.ObjectId();
         this.createdAt = new Date();
         this.updatedAt = new Date();
+        this.status = Status.Active;
     }
 }

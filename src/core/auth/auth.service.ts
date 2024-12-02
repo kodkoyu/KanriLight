@@ -1,53 +1,71 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RedisRepository } from '../../infrastructure/database/redis.repository';
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        private readonly jwtService: JwtService,
-        private readonly redisRepository: RedisRepository,
-    ) { }
+  private readonly jwtSecret: string;
+  private readonly hmacSecret: string;
 
-    async generateTokens(userId: string, userAgent: string) {
-        const accessToken = this.jwtService.sign({ userId }, { expiresIn: '15m' });
-        const refreshToken = this.jwtService.sign({ userId }, { expiresIn: '7d' });
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly redisRepository: RedisRepository,
+    private readonly configService: ConfigService,
+  ) {
+    this.jwtSecret = this.configService.get<string>('JWT_SECRET') || 'defaultJwtSecret';
+    this.hmacSecret = this.configService.get<string>('HMAC_SECRET') || 'defaultHmacSecret';
+  }
 
-        const tokenData = {
-            accessToken,
-            refreshToken,
-            userAgent,
-        };
+  getUserAgent(request: Request): string {
+    return request.headers['user-agent'] || 'Unknown';
+  }
 
-        await this.redisRepository.set(`User/${userId}/Token`, tokenData, 7 * 24 * 60 * 60);
-        return tokenData;
+  async generateTokens(userId: string, roles: string[], userAgent: string) {
+    const payload = { sub: userId, roles };
+    const accessToken = this.jwtService.sign(payload, {
+      secret: this.jwtSecret,
+      expiresIn: '15m',
+    });
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.jwtSecret,
+      expiresIn: '7d',
+    });
+
+    const redisKey = `User:${userId}:UserAgent:${userAgent}`;
+    await this.redisRepository.set(
+      redisKey,
+      JSON.stringify({ accessToken, refreshToken }),
+      7 * 24 * 60 * 60,
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async validateRefreshToken(userId: string, refreshToken: string, userAgent: string) {
+    const redisKey = `User:${userId}:UserAgent:${userAgent}`;
+    const storedTokens = await this.redisRepository.get(redisKey);
+
+    if (!storedTokens) {
+      throw new UnauthorizedException('Refresh token expired or invalid');
     }
 
-    async validateToken(userId: string, token: string, userAgent: string) {
-        const tokenData = await this.redisRepository.get<any>(`User/${userId}/Token`);
+    const { refreshToken: storedRefreshToken } = JSON.parse(storedTokens.toString());
 
-        if (!tokenData) {
-            throw new UnauthorizedException('Token not found');
-        }
-
-        if (tokenData.accessToken !== token || tokenData.userAgent !== userAgent) {
-            throw new UnauthorizedException('Invalid token or User-Agent mismatch');
-        }
-
-        return true;
+    if (storedRefreshToken !== refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    async refreshTokens(userId: string, refreshToken: string, userAgent: string) {
-        const tokenData = await this.redisRepository.get<any>(`User/${userId}/Token`);
+    return true;
+  }
 
-        if (!tokenData || tokenData.refreshToken !== refreshToken) {
-            throw new UnauthorizedException('Invalid Refresh Token');
-        }
-
-        return this.generateTokens(userId, userAgent);
+  decodeRefreshToken(token: string): { userId: string; roles: string[] } | null {
+    try {
+      const decoded = this.jwtService.verify(token, { secret: this.jwtSecret });
+      return { userId: decoded.sub, roles: decoded.roles };
+    } catch (err) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
-
-    async revokeTokens(userId: string) {
-        await this.redisRepository.del(`User/${userId}/Token`);
-    }
+  }
 }

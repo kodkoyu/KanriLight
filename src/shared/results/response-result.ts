@@ -3,10 +3,10 @@ export class ResponseResult<T> {
     data: T;
     message: string;
   
-    constructor(data: T, message = 'Request completed successfully') {
+    constructor(data: T, message = 'Success') {
       this.success = true;
-      this.data = data;
       this.message = message;
+      this.data = data;
     }
   }
   
